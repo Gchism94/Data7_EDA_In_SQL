@@ -9,7 +9,7 @@
 <meta name="author" content="Greg Chism">
 <meta name="dcterms.date" content="2022-09-21">
 
-<title>Exploratory Data Analysis in MySQL</title>
+<title>Data7 Exploratory Data Analysis in MySQL</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -83,16 +83,16 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </style>
 
 
-<script src="EDA_In_SQL_files/libs/clipboard/clipboard.min.js"></script>
-<script src="EDA_In_SQL_files/libs/quarto-html/quarto.js"></script>
-<script src="EDA_In_SQL_files/libs/quarto-html/popper.min.js"></script>
-<script src="EDA_In_SQL_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="EDA_In_SQL_files/libs/quarto-html/anchor.min.js"></script>
-<link href="EDA_In_SQL_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="EDA_In_SQL_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="EDA_In_SQL_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="EDA_In_SQL_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="EDA_In_SQL_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="Data7_EDA_In_SQL_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Data7_EDA_In_SQL_files/libs/quarto-html/quarto.js"></script>
+<script src="Data7_EDA_In_SQL_files/libs/quarto-html/popper.min.js"></script>
+<script src="Data7_EDA_In_SQL_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Data7_EDA_In_SQL_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Data7_EDA_In_SQL_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Data7_EDA_In_SQL_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Data7_EDA_In_SQL_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Data7_EDA_In_SQL_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Data7_EDA_In_SQL_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
@@ -106,7 +106,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Exploratory Data Analysis in MySQL</h1>
+<h1 class="title">Data7 Exploratory Data Analysis in MySQL</h1>
 </div>
 
 
@@ -145,6 +145,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>Diagnose and remove outliers</li>
 <li>Diagnose missing values in a data set</li>
 </ol>
+<hr>
+</section>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p><a href="https://en.wikipedia.org/wiki/Exploratory_data_analysis">Exploratory data analysis</a> is an essential first step towards determining the validity of your data and should be performed throughout the data pipeline. However, EDA is often performed too late or not at all.</p>
+<p><a href="https://en.wikipedia.org/wiki/SQL">SQL (Structured Query Language)</a> is a programming language for database management, which lets you store, retrieve, manage, and manipulate data tables within databases. Though SQL has limited mathematical capabilities it can be used to perform EDA. A disadvantage however is that SQL cannot be used to perform <a href="https://en.wikipedia.org/wiki/Statistical_graphics">statistical graphics</a> and other data visualization methods. For this, I recommend either the <a href="https://en.wikipedia.org/wiki/R_(programming_language)">R programming language</a>, specifically through the <a href="https://en.wikipedia.org/wiki/RStudio">RStudio IDE</a>, or</p>
+<p>Here, we utilize <a href="https://en.wikipedia.org/wiki/MySQL">MySQL</a> to conduct preliminary exploratory data analysis aimed at diagnosing any major issues with an imported data set. We introduce a clean and straightforward methodology to uncover issues such as data <a href="https://en.wikipedia.org/wiki/Outlier">outliers</a>, <a href="https://en.wikipedia.org/wiki/Missing_data">missing data</a>, as well as summary statistical reports.</p>
 <hr>
 </section>
 <section id="required-setup" class="level2">
