@@ -1,0 +1,392 @@
+---
+title: "Exploratory Data Analysis in MySQL"
+author: Greg Chism
+date: 2022-09-21
+format:
+  html:
+    theme: cosmo
+    code-copy: true
+---
+
+![](cover.png){width="362"}
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
+
+options(repos = list(CRAN = "http://cran.rstudio.com/"))
+
+knitr::opts_chunk$set(connection = "SQL_Con")
+```
+
+## Purpose of Materials
+
+**Exploratory data analysis of a novel data set with MySQL**
+
+------------------------------------------------------------------------
+
+## Objectives
+
+1.  Load and explore a data set with summary statistics
+2.  Diagnose and remove outliers
+3.  Diagnose missing values in a data set
+
+------------------------------------------------------------------------
+
+## Required Setup
+
+We first need to prepare our environment with the necessary libraries and start our MySQL connection. Note that you can use SQLite for some of these functions, but not all.
+
+```{r, message = FALSE, output = FALSE}
+install.packages("RMySQL")
+
+library(DBI)
+library(RMySQL)
+library(here)
+
+SQL_Con <- dbConnect(RMySQL::MySQL(), dbname = 'data_diabetes_RStudio', username = 'root', host='localhost', password = 'Chism1154')
+```
+
+------------------------------------------------------------------------
+
+## Examine and Describe a Data Set
+
+-   Examine columns and data types
+-   Summary statistics
+-   Define box plots
+-   Describe meta data
+
+------------------------------------------------------------------------
+
+### Examine a Data Set
+
+We should always examine a dataset in our databases. Here we are looking at the first 5 rows of the dataset.
+
+```{sql}
+-- First 5 rows
+SELECT * 
+FROM diabetes
+LIMIT 5;
+```
+
+------------------------------------------------------------------------
+
+### Describe your Data
+
+We need to start by seeing what data types our columns actually are.
+
+```{sql}
+-- What are the properties of the data
+DESCRIBE diabetes;
+```
+
+-   `Field`: name of each variable
+-   `type`: data type of each variable
+-   `Null`: allows NULL values
+-   `Key`: primary key that was used
+-   `Default`: default value for the column
+-   `Extra`: any additional information
+
+------------------------------------------------------------------------
+
+### Unique values
+
+Next we can look at unique values within columns - e.g., Pregnancies and Age.
+
+```{sql}
+SELECT 
+DISTINCT Pregnancies, Age
+FROM diabetes;
+```
+
+------------------------------------------------------------------------
+
+### Filtering
+
+We can also filter data by qualifications.
+
+```{sql}
+SELECT *
+FROM diabetes
+WHERE Age >= 50
+LIMIT 5;
+```
+
+------------------------------------------------------------------------
+
+### Sorting
+
+We might want to sort columns in ascending (`ASC`) or descending (`DESC`) order.
+
+```{sql}
+SELECT Glucose, Age
+FROM diabetes
+ORDER BY Glucose ASC
+LIMIT 10;
+```
+
+------------------------------------------------------------------------
+
+## Summary Statistics of your Data
+
+### Numerical Variables
+
+Our entire database is numerical data, but we will look at two of the numerical columns, `Glucose` and `Insulin`.
+
+Note that the stat column will be called 'Count' but this isn't a problem.
+
+```{sql}
+-- Summary statistics of our numerical columns
+SELECT 'Count',
+    count(Glucose) as Glucose,
+    count(Insulin) as Insulin
+FROM diabetes
+UNION
+SELECT 'Total',
+    sum(Glucose) as Glucose,
+    sum(Insulin) as Insulin
+FROM diabetes
+UNION
+SELECT 'Mean',
+    avg(Glucose),
+    avg(Insulin)
+FROM diabetes
+UNION
+SELECT 'Min',
+    min(Glucose),
+    min(Insulin)
+FROM diabetes
+UNION
+SELECT 'Max',
+    max(Glucose),
+    max(Insulin)
+FROM diabetes
+UNION
+SELECT 'Std. Dev.',
+    STDDEV_SAMP(Glucose),
+    STDDEV_SAMP(Insulin)
+FROM diabetes
+UNION
+SELECT 'Variance',
+    VAR_SAMP(Glucose),
+    VAR_SAMP(Insulin)
+FROM diabetes; 
+```
+
+-   `Count`: number of observations
+
+-   `Total`: sum of all values in a columns
+
+-   `Mean`: arithmetic mean (average value)
+
+-   `Min`: minimum value
+
+-   `Max`: maximum value
+
+-   `Std. Dev.`: standard deviation of the data
+
+-   `Variance`: variance of the data
+
+------------------------------------------------------------------------
+
+#### **Median** and **Percentiles**
+
+SQL does not have straightforward functions for percentiles (including the **Median**), so let's write them!
+
+-   Make 100 bins
+
+-   Assign percentiles to bins
+
+-   Select desired percentiles (25, 50, 75) = (Q1, Median, Q3)
+
+```{sql}
+WITH perc AS (SELECT Glucose, NTILE(100) OVER (ORDER BY Glucose) AS 'Percentile'
+FROM diabetes)
+SELECT Percentile, MAX(Glucose) as Glucose
+FROM perc
+GROUP BY Percentile
+HAVING Percentile = 25 OR Percentile = 50 or Percentile = 75;
+```
+
+### Categorical Variables
+
+Our original data does not have a categorical column, so we will use `diabetes_Age`. In the `Age_group` column categories were created by a qualifier:
+
+`Young`: Age \<= 21
+
+`Middle`: Age between 21 and 30
+
+`Elderly`: Age \> 30
+
+```{sql}
+SELECT Age_group,
+       COUNT(*) AS 'Count',
+       COUNT(*) * 1.0 / SUM(COUNT(*)) OVER () AS 'Ratio'
+FROM diabetes_Age
+GROUP BY Age_group
+```
+
+-   `Count`: number of values in the column
+
+-   `Ratio`: the number of observations over the total observations
+
+------------------------------------------------------------------------
+
+## Outliers
+
+Values outside of $1.5 * IQR$
+
+![Image Credit: [CÉDRIC SCHERER](https://www.cedricscherer.com/2019/05/17/the-evolution-of-a-ggplot-ep.-1/)](https://d33wubrfki0l68.cloudfront.net/6a759d8217be119e3409d1eb8e6cd78913bcc86f/c1995/img/evol-ggplot/boxplot.png){fig-alt="Boxplot showing the IQR, lower and upper quartiles, median, and outliers"}
+
+------------------------------------------------------------------------
+
+There are several numerical variables that have outliers above, let's see what the data look like with and without them.
+
+------------------------------------------------------------------------
+
+### Outlier Detection
+
+The most common method to detect outliers is by using the interquartile range:
+
+$1.5 * IQR$. Above we found the first and third quartiles for Glucose (Q1 = 100, Q3 = 144), therefore the IQR is 44.
+
+Qualifier: $1.5∗44=66$
+
+Lower limit: $100-66 = 34$
+
+Upper limit: $144 + 66 = 210$
+
+```{sql}
+SELECT Glucose
+FROM diabetes
+WHERE Glucose < 210 AND Glucose > 34 
+ORDER BY Glucose ASC;
+```
+
+------------------------------------------------------------------------
+
+## Missing Values (NAs)
+
+Table showing the extent of NAs in columns containing them.
+
+```{sql}
+SELECT * 
+FROM
+diabetesNA
+LIMIT 5;
+```
+
+However, "NA" is not NULL in SQL, so we will have to change this.
+
+-   Create new table from diabetesNA.
+
+```{sql, eval = FALSE}
+CREATE TABLE diabetesNull
+AS
+SELECT * 
+FROM diabetesNA;
+```
+
+-   Change `'NA'` into `NULL` - Its possible to do this all in one argument, but I find that temperamental.
+
+**Pregnancies**
+
+```{sql}
+UPDATE diabetesNull
+SET
+Pregnancies = NULL WHERE Pregnancies = 'NA';
+```
+
+**Glucose**
+
+```{sql}
+UPDATE diabetesNull
+SET
+Glucose = NULL WHERE Glucose = 'NA';
+```
+
+**BloodPressure**
+
+```{sql}
+UPDATE diabetesNull
+SET
+BloodPressure = NULL WHERE BloodPressure = 'NA';
+```
+
+**SkinThickness**
+
+```{sql}
+UPDATE diabetesNull
+SET
+SkinThickness = NULL WHERE SkinThickness = 'NA';
+```
+
+**Insulin**
+
+```{sql}
+UPDATE diabetesNull
+SET
+Insulin = NULL WHERE Insulin = 'NA';
+```
+
+**BMI**
+
+```{sql}
+UPDATE diabetesNull
+SET
+BMI = NULL WHERE BMI = 'NA';
+```
+
+**DiabetesPedigreeFunction**
+
+```{sql, eval = FALSE}
+UPDATE diabetesNull
+SET
+DiabetesPedigreeFunction = NULL WHERE DiabetesPedigreeFunction = 'NA';
+```
+
+**Age**
+
+```{sql}
+UPDATE diabetesNull
+SET
+Age = NULL WHERE Age = 'NA';
+```
+
+**Outcome**
+
+```{sql}
+UPDATE diabetesNull
+SET
+Outcome = NULL WHERE Outcome = 'NA';
+```
+
+------------------------------------------------------------------------
+
+### Diagnose NAs
+
+Now we can see true NAs! (They look the same in the Quarto render, but SQL treats them differently)
+
+```{sql}
+SELECT * 
+FROM diabetesNULL 
+```
+
+We can see the number of NULL values in each column.
+
+```{sql}
+SELECT 'NAs',
+    SUM(CASE WHEN Glucose IS NULL THEN 1 ELSE 0 END) AS Glucose, 
+    SUM(CASE WHEN Insulin IS NULL THEN 1 ELSE 0 END) AS Insulin
+FROM diabetesNULL
+UNION
+SELECT 'NA Freq',
+    SUM(CASE WHEN Glucose IS NULL THEN 1 ELSE 0 END) / SUM(CASE WHEN Glucose IS NULL THEN 0 ELSE 1 END) AS Glucose, 
+    SUM(CASE WHEN Insulin IS NULL THEN 1 ELSE 0 END) / SUM(CASE WHEN Insulin IS NULL THEN 0 ELSE 1 END) AS Insulin
+FROM diabetesNULL
+```
+
+------------------------------------------------------------------------
+
+Created: 09/21/2022 (G. Chism); Last update: 09/21/2022
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/CC_BY-NC-SA.svg/800px-CC_BY-NC-SA.svg.png?20181117113353" width="150" height="50"/> [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/)
