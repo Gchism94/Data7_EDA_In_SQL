@@ -6,6 +6,7 @@ format:
   html:
     theme: cosmo
     code-copy: true
+    toc: true
 ---
 
 ![](cover.png){width="362"}
